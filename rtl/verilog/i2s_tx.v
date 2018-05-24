@@ -22,16 +22,13 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * WORK, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
-module i2s_tx #(
-	parameter AUDIO_DW	= 32
+ 
+ module i2s_tx #(
+	parameter AUDIO_DW	= 24,
+	parameter prescaler = 32
 )(
 	input			sclk,
 	input			rst,
-
-	// Prescaler for lrclk generation from sclk should hold the number of
-	// sclk cycles per channel (left and right).
-	input [AUDIO_DW-1:0]	prescaler,
 
 	output reg		lrclk,
 	output reg		sdata,
@@ -53,6 +50,15 @@ always @(negedge sclk)
 	else
 		bit_cnt <= bit_cnt + 1;
 
+integer i;
+always @(negedge sclk)
+    if (rst) begin
+        sdata <= 'b0;
+        for (i=0; i<AUDIO_DW; i=i+1) 
+            left[i] <= 'b0;
+            right[i] <= 'b0;
+    end
+    
 // Sample channels on the transfer of the last bit of the right channel
 always @(negedge sclk)
 	if (bit_cnt == prescaler && lrclk) begin
@@ -68,6 +74,9 @@ always @(negedge sclk)
 		lrclk <= ~lrclk;
 
 always @(negedge sclk)
-	sdata <= lrclk ? right[AUDIO_DW - bit_cnt] : left[AUDIO_DW - bit_cnt];
+    if (bit_cnt > AUDIO_DW)
+	   sdata <= 0;
+   else
+       sdata <= lrclk ? right[AUDIO_DW - bit_cnt] : left[AUDIO_DW - bit_cnt];
 
 endmodule
